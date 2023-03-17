@@ -90,25 +90,28 @@ impl Subscription {
         if let Some(e) = response.error {
             return Err(e);
         }
-        let messages = response
-            .received_messages
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|m| {
-                if let Ok(data) = m.message.decode() {
-                    if data == PING.as_bytes() {
-                        log::debug!("{}", PING);
-                        return None;
-                    } else {
-                        // Echo as info, in case we want to check the queue status
-                        log::info!("echo - {}", String::from_utf8_lossy(&data));
-                        return None;
-                    }
+
+        let messages = response.received_messages.unwrap_or_default();
+
+        let mut batch = Vec::new();
+
+        for m in messages {
+            if let Ok(data) = m.message.decode() {
+                if data == PING.as_bytes() {
+                    log::debug!("{}", PING);
+                    self.acknowledge_messages(vec![m.ack_id]).await;
+                    continue;
+                } else {
+                    // Echo as info, in case we want to check the queue status
+                    log::info!("echo - {}", String::from_utf8_lossy(&data));
+                    self.acknowledge_messages(vec![m.ack_id]).await;
+                    continue;
                 }
-                Some((T::from(m.message), m.ack_id))
-            })
-            .collect();
-        Ok(messages)
+            }
+            batch.push((T::from(m.message), m.ack_id));
+        }
+
+        Ok(batch)
     }
 
     pub async fn destroy(self) -> Result<(), error::Error> {
