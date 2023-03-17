@@ -1,6 +1,6 @@
 use crate::client::Client;
 use crate::error;
-use crate::message::{FromPubSubMessage, Message};
+use crate::message::{FromPubSubMessage, Message, PING};
 use hyper::body::Buf;
 use hyper::{Method, StatusCode};
 use lazy_static::lazy_static;
@@ -84,6 +84,7 @@ impl Subscription {
                 message: self.name.clone(),
             });
         }
+
         let body = hyper::body::aggregate(response).await?;
         let response: Response = serde_json::from_reader(body.reader())?;
         if let Some(e) = response.error {
@@ -93,7 +94,19 @@ impl Subscription {
             .received_messages
             .unwrap_or_default()
             .into_iter()
-            .map(|m| (T::from(m.message), m.ack_id))
+            .filter_map(|m| {
+                if let Ok(data) = m.message.decode() {
+                    if data == PING.as_bytes() {
+                        log::debug!("{}", PING);
+                        return None;
+                    } else {
+                        // Echo as info, in case we want to check the queue status
+                        log::info!("echo - {}", String::from_utf8_lossy(&data));
+                        return None;
+                    }
+                }
+                Some((T::from(m.message), m.ack_id))
+            })
             .collect();
         Ok(messages)
     }

@@ -3,6 +3,8 @@ use base64::{self, Engine};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub(crate) const PING: &str = "ping";
+
 #[derive(Deserialize, Clone, Serialize)]
 pub struct EncodedMessage {
     data: String,
@@ -37,6 +39,10 @@ impl EncodedMessage {
     ) -> Self {
         let data = base64::engine::general_purpose::STANDARD.encode(&incoming);
         EncodedMessage { data, attributes }
+    }
+
+    pub fn ping() -> Self {
+        Self::new_binary(&PING.to_string(), None)
     }
 }
 
