@@ -101,11 +101,6 @@ impl Subscription {
                     log::debug!("{}", PING);
                     self.acknowledge_messages(vec![m.ack_id]).await;
                     continue;
-                } else {
-                    // Echo as info, in case we want to check the queue status
-                    log::info!("echo - {}", String::from_utf8_lossy(&data));
-                    self.acknowledge_messages(vec![m.ack_id]).await;
-                    continue;
                 }
             }
             batch.push((T::from(m.message), m.ack_id));
